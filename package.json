@@ -1,0 +1,47 @@
+{
+  "name": "java-string-literal-tools",
+  "displayName": "Java String Literal Tools",
+  "description": "Allows to copy java string literal value as plain text",
+  "version": "1.0.0",
+  "publisher": "poletaev-d",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/poletaev-d/java-string-literal-tools.git"
+  },
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "keywords": [
+    "java",
+    "string",
+    "literal",
+    "clipboard"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:java-string-literal-tools.copy-literals"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "java-string-literal-tools.copy-literals",
+        "title": "Copy string literals to clipboard"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "antlr4ts": "^0.5.0-alpha.3",
+    "copy-paste": "^1.0.0",
+    "java-ast": "^0.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.1.0"
+  }
+}
