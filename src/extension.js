@@ -1,120 +1,161 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 'use strict';
 
 const vscode = require('vscode');
+const ncp = require("copy-paste");
 const ast = require('java-ast');
 const tree = require('antlr4ts/tree');
-const { LiteralContext } = require('java-ast');
-const parser = require('java-ast/dist/parser/JavaParser');
-var ncp = require("copy-paste");
+const { JavaParser } = require('java-ast/dist/parser/JavaParser');
+const { Interval } = require("./Interval");
 
-
-const Interval = function (start, end) {
-  if (start > end) {
-      throw start + " > " + end;
-  }
-  this.start = start;
-  this.end = end;
-}
-
-Interval.prototype.intersects = function (other) {
-  return this.start <= other.start && this.end >= other.end
-    || this.start >= other.start && this.start <= other.end
-    || this.end >= other.start && this.end <= other.end;
-}
 /**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+  context.subscriptions.push(vscode.commands.registerCommand('java-string-literal-tools.copy-literals', copyLiterals));
+  context.subscriptions.push(vscode.commands.registerCommand('java-string-literal-tools.paste-as-literals', pasteAsLiterals));
+}
 
-  let disposable = vscode.commands.registerCommand('java-string-literal-tools.copy-literals', function () {
+function copyLiterals() {
     
-    const editor = vscode.window.activeTextEditor;
-    const text = editor.document.getText();
-    const selection = new Interval(
-      editor.document.offsetAt(editor.selection.start),
-      editor.document.offsetAt(editor.selection.end));
+  const editor = vscode.window.activeTextEditor;
+  const text = editor.document.getText();
+  const selection = new Interval(
+    editor.document.offsetAt(editor.selection.start),
+    editor.document.offsetAt(editor.selection.end));
+
+  const parsedCode = ast.parse(text);
+  const leafs = getAllLeafs(parsedCode);
+
+  let nodesToCopy = [];
+
+  if (selection.end - selection.start <= 1) {
+    let selectedStringLiteral = leafs.find(
+      node => node instanceof tree.TerminalNode
+        && node.symbol.type == JavaParser.STRING_LITERAL
+        && selection.intersects(new Interval(node.symbol.startIndex + 1, node.symbol.stopIndex)));
+    
+    if (selectedStringLiteral != null) {
+      nodesToCopy = pullConcatenationList(selectedStringLiteral.parent.parent.parent);
+    }
+  
+  } else {
+    nodesToCopy = leafs.filter(
+      node => node instanceof tree.TerminalNode
+        && node.symbol.type == JavaParser.STRING_LITERAL
+        && selection.intersects(new Interval(node.symbol.startIndex + 1, node.symbol.stopIndex)));
+  }
+
+  if (nodesToCopy.length > 0) {
+    let textToCopy = '';
+
+    for (let n of nodesToCopy) {
+      let singleLeaf = n;
+      while (singleLeaf.children != null && singleLeaf.children.length == 1) {
+        singleLeaf = singleLeaf.children[0];
+      }
+
+      let isStringLiteral = singleLeaf instanceof tree.TerminalNode
+        && singleLeaf.symbol.type == JavaParser.STRING_LITERAL
+        && singleLeaf.text.length > 0;
+      
+      textToCopy += isStringLiteral ? JSON.parse(singleLeaf.text) : n.text;
+    }
+    
+    if (textToCopy.length > 0) {
+      ncp.copy(textToCopy,
+        () => {
+          vscode.window.showInformationMessage(nodesToCopy.length == 1
+            ? 'String literal value is copied to clipboard'
+            : 'String literal concatenation is copied to clipboard');
+        });
+    } else {
+      vscode.window.showWarningMessage('String literal value is empty');
+    }
+  } else {
+    vscode.window.showWarningMessage('No string literal is selected');
+  }
+}
+
+function pasteAsLiterals() {
+  const editor = vscode.window.activeTextEditor;
+  const text = editor.document.getText();
+  const selection = new Interval(
+    editor.document.offsetAt(editor.selection.start),
+    editor.document.offsetAt(editor.selection.end));
+  
+  ncp.paste((dummy, str) => {
+    if (str == null || str.length == 0) {
+      vscode.window.showWarningMessage('Clipboard is empty');
+      return;
+    }
 
     const parsedCode = ast.parse(text);
     const leafs = getAllLeafs(parsedCode);
-
-    let selectedStringLiteral = leafs.find(
+    let startLiteral = leafs.find(
       node => node instanceof tree.TerminalNode
-        && node.symbol.type == parser.JavaParser.STRING_LITERAL
-        && selection.intersects(new Interval(node.symbol.startIndex + 1, node.symbol.stopIndex)));
+        && node.symbol.type == JavaParser.STRING_LITERAL
+        && selection.start >= node.symbol.startIndex + 1 && selection.start <= node.symbol.stopIndex);
     
-    let copiedLiteralsCount = 0;
-    let copiedText = null;
+    let endLiteral = leafs.find(
+      node => node instanceof tree.TerminalNode
+        && node.symbol.type == JavaParser.STRING_LITERAL
+        && selection.end >= node.symbol.startIndex + 1 && selection.end <= node.symbol.stopIndex);
     
-    if (selectedStringLiteral != null) {
-      let list = pullConcatenationList(selectedStringLiteral.parent.parent.parent);
-      if (!editor.selection.isEmpty) {
-        list = list.filter(node => selection.intersects(new Interval(node.start.startIndex + 1, node.stop.stopIndex)));
-      }
-      let result = '';
-
-      for (let n of list) {
-        let singleLeaf = n;
-        while (singleLeaf.children != null && singleLeaf.children.length == 1) {
-          singleLeaf = singleLeaf.children[0];
-        }
-        if (singleLeaf instanceof tree.TerminalNode && singleLeaf.symbol.type == parser.JavaParser.STRING_LITERAL) {
-          result += stringLiteralToString(singleLeaf.text);
-        } else {
-          result += n.text;
-        }
-      }
-
-      copiedLiteralsCount = list.length;
-      copiedText = result;
+    let rawLines = str.split("\n");
+    for (let i = 0; i < rawLines.length - 1; ++i) {
+      rawLines[i] = rawLines[i] + "\n";
+    }
+    let escapedLines = rawLines.filter(s => s.length > 0).map(s => JSON.stringify(s));
+    
+    if (startLiteral != null) {
+      escapedLines[0] = escapedLines[0].substring(1, escapedLines[0].length);
     }
 
-    if (copiedLiteralsCount > 0) {
-      ncp.copy(copiedText,
-        () => {
-          vscode.window.showInformationMessage(copiedLiteralsCount == 1
-            ? 'String literal value is copied to clipboard'
-            : 'String literals concatenation is copied to clipboard');
-        });
-    } else {
-      vscode.window.showInformationMessage('No string literal is selected');
+    if (endLiteral != null) {
+      let s = escapedLines[escapedLines.length - 1];
+      escapedLines[escapedLines.length - 1] = s.substring(0, s.length - 1);
     }
-
-	});
-
-	context.subscriptions.push(disposable);
+    let result = escapedLines.join("\n+ ");
+    editor.edit(editBuilder => editBuilder.replace(editor.selection, result));
+    vscode.commands.executeCommand('editor.action.formatSelection');
+  });
 }
 
+
+/** 
+ * @param {ast.ParseTree} node Root node
+ * @return {[ast.ParseTree]} All leaf nodes in {@link node}
+ */
 function getAllLeafs(node) {
   let arr = [];
-  if (node.children != null) {
+  if (node.children == null || node.children.length == 0) {
+    arr = [node];
+  } else {
     for (let nn of node.children) {
-      arr = arr.concat([nn], getAllLeafs(nn));
+      arr = arr.concat(getAllLeafs(nn));
     }
   }
 
   return arr;
 }
 
-function stringLiteralToString(literal) {
-  let result;
-  if (literal.length > 0) {
-    result = JSON.parse(literal);
-  } else {
-    result = literal;
-  }
-
-  return result;
-}
-
+/** 
+ * @param {ast.ParseTree} node
+ * @return {boolean} true if {@link node} contains concatenation of 2 other nodes
+ */
 function isConcatenationNode(node) {
   return node != null && node.children != null
     && node.children.length == 3
     && node.children[1] instanceof tree.TerminalNode
-    && node.children[1].symbol.type == parser.JavaParser.ADD;
+    && node.children[1].symbol.type == JavaParser.ADD;
 }
 
+/** 
+ * If {@link rootNode} contains concatenation of multiple nodes, returns all that nodes without ADD symbols.
+ * Otherwise returns {@link rootNode} itself
+ * @param {ast.ParseTree} rootNode
+ * @return {[ast.ParseTree]} array of nodes in concatenation
+ */
 function pullConcatenationListFromRoot(rootNode) {
   if (isConcatenationNode(rootNode)) {
     let left = pullConcatenationListFromRoot(rootNode.children[0]);
@@ -125,6 +166,12 @@ function pullConcatenationListFromRoot(rootNode) {
   }
 }
 
+/** 
+ * If {@link node} is part of concatenation, then returns all nodes in this concatenation
+ * Otherwise returns {@link node} itself
+ * @param {ast.ParseTree} node
+ * @return {[ast.ParseTree]} array of nodes in concatenation
+ */
 function pullConcatenationList(node) {
   let list = [];
   if (!isConcatenationNode(node.parent)) {
