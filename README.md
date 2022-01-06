@@ -7,4 +7,6 @@
 
 ## Usage
 
+Commands are available in `Command Palette` (<kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>)
+
 ![usage](img/usage.gif)

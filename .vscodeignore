@@ -9,3 +9,6 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 .cache/
 *.vsix
+webpack.config.js
+node_modules/
+src/
