@@ -1,7 +1,6 @@
 'use strict';
 
 const vscode = require('vscode');
-const ncp = require("copy-paste");
 const ast = require('java-ast');
 const tree = require('antlr4ts/tree');
 const { JavaParser } = require('java-ast/dist/parser/JavaParser');
@@ -62,8 +61,7 @@ function copyLiterals() {
     }
     
     if (textToCopy.length > 0) {
-      ncp.copy(textToCopy,
-        () => {
+      vscode.env.clipboard.writeText(textToCopy).then(() => {
           vscode.window.showInformationMessage(nodesToCopy.length == 1
             ? 'String literal value is copied to clipboard'
             : 'String literal concatenation is copied to clipboard');
@@ -83,7 +81,7 @@ function pasteAsLiterals() {
     editor.document.offsetAt(editor.selection.start),
     editor.document.offsetAt(editor.selection.end));
   
-  ncp.paste((dummy, str) => {
+  vscode.env.clipboard.readText().then(str => {
     if (str == null || str.length == 0) {
       vscode.window.showWarningMessage('Clipboard is empty');
       return;

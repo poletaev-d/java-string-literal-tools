@@ -1,7 +1,6 @@
 'use strict';
 
 const path = require('path');
-const CopyPlugin = require("copy-webpack-plugin");
 
 /**@type {import('webpack').Configuration}*/
 const config = {
@@ -20,22 +19,11 @@ const config = {
   },
   resolve: {
     mainFields: ['browser', 'module', 'main'], // look for `browser` entry point in imported node modules
-    extensions: ['.js'],
-    alias: {
-      // provides alternate implementation for node module and source files
-    },
-    fallback: {
-      './platform/openbsd': './platform/linux', //fix for copy-paste on windows
-    }
+    extensions: ['.js']
   },
   module: {
   },
   plugins: [
-    new CopyPlugin({
-      patterns: [
-        { context: './node_modules/copy-paste/platform', from: '**/*.vbs' }, //fix for copy-paste on windows
-      ],
-    }),
   ],
 };
 module.exports = config;
