@@ -1,8 +1,8 @@
 {
   "name": "java-string-literal-tools",
-  "displayName": "Java String Literal Tools",
+  "displayName": "String Literal Tools For Java",
   "description": "Simplifies working with string literals in Java",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "poletaev-d",
   "license": "MIT",
   "repository": {
