@@ -36,7 +36,58 @@
         "command": "java-string-literal-tools.paste-as-literals",
         "title": "Paste Text Into String Literals"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "String Literal Tools For Java",
+      "properties": {
+        "stringLiteralToolsForJava.copyToClipboard.lineBreakHandling": {
+          "type": "string",
+          "description": "The way to handle line breaks while copying literals to clipboard",
+          "default": "retain",
+          "enum": [
+            "retain",
+            "\n",
+            "\r\n",
+            "remove"
+          ],
+          "enumItemLabels": [
+            "Retain",
+            "Replace with LF",
+            "Replace with CRLF",
+            "Remove"
+          ],
+          "enumDescriptions": [
+            "Line break at the end of string literal is kept unchanged",
+            "Line break at the end of string literal is replaced with LF",
+            "Line break at the end of string literal is replaced with CRLF",
+            "Line break at the end of string literal is removed"
+          ]
+        },
+        "stringLiteralToolsForJava.pasteFromClipboard.lineBreakHandling": {
+          "type": "string",
+          "description": "The way to handle line breaks while pasting from clipboard into literals",
+          "default": "retain",
+          "enum": [
+            "retain",
+            "\n",
+            "\r\n",
+            "remove"
+          ],
+          "enumItemLabels": [
+            "Retain",
+            "Replace with LF",
+            "Replace with CRLF",
+            "Remove"
+          ],
+          "enumDescriptions": [
+            "Line breaks present in original text are kept unchanged",
+            "Line breaks present in original text are replaced with LF",
+            "Line breaks present in original text are replaced with CRLF",
+            "Line breaks present in original text are removed"
+          ]
+        }
+      }
+    }
   },
   "icon": "img/icon.png",
   "scripts": {

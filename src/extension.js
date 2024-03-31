@@ -15,7 +15,7 @@ function activate(context) {
 }
 
 function copyLiterals() {
-    
+  const extensionConfig = getExtensionConfig();
   const editor = vscode.window.activeTextEditor;
   const text = editor.document.getText();
   const selection = new Interval(
@@ -47,8 +47,11 @@ function copyLiterals() {
   if (nodesToCopy.length > 0) {
     let textToCopy = '';
 
-    for (let n of nodesToCopy) {
-      let singleLeaf = n;
+    
+    for (let i = 0; i < nodesToCopy.length; ++i) {
+      let currentNode = nodesToCopy[i];
+      let nextNode = i < nodesToCopy.length - 1 ? nodesToCopy[i + 1] : null;
+      let singleLeaf = currentNode;
       while (singleLeaf.children != null && singleLeaf.children.length == 1) {
         singleLeaf = singleLeaf.children[0];
       }
@@ -57,7 +60,13 @@ function copyLiterals() {
         && singleLeaf.symbol.type == JavaParser.STRING_LITERAL
         && singleLeaf.text.length > 0;
       
-      textToCopy += isStringLiteral ? JSON.parse(singleLeaf.text) : n.text;
+      let nodeText = isStringLiteral ? JSON.parse(singleLeaf.text) : currentNode.text;
+      if (nextNode == null) {
+        nodeText = processLineBreak(nodeText, extensionConfig.copyToClipboard.lineBreakHandling, false);
+      } else if (nextNode.start.line > currentNode.stop.line) {
+        nodeText = processLineBreak(nodeText, extensionConfig.copyToClipboard.lineBreakHandling, true);
+      }
+      textToCopy += nodeText;
     }
     
     if (textToCopy.length > 0) {
@@ -75,6 +84,7 @@ function copyLiterals() {
 }
 
 function pasteAsLiterals() {
+  const extensionConfig = getExtensionConfig();
   const editor = vscode.window.activeTextEditor;
   const text = editor.document.getText();
   const selection = new Interval(
@@ -101,7 +111,7 @@ function pasteAsLiterals() {
     
     let rawLines = str.split("\n");
     for (let i = 0; i < rawLines.length - 1; ++i) {
-      rawLines[i] = rawLines[i] + "\n";
+      rawLines[i] = processLineBreak(rawLines[i] + "\n", extensionConfig.pasteFromClipboard.lineBreakHandling, true);
     }
     let escapedLines = rawLines.filter(s => s.length > 0).map(s => JSON.stringify(s));
     
@@ -183,6 +193,40 @@ function pullConcatenationList(node) {
   }
 
   return list;
+}
+
+function getExtensionConfig() { 
+  return vscode.workspace.getConfiguration('stringLiteralToolsForJava');
+}
+
+function processLineBreak(text, lineBreakHandlingMode, forceAppend) {
+  if (text == null) {
+    return text;
+  }
+  if (lineBreakHandlingMode === '\n'
+    || lineBreakHandlingMode === '\r\n'
+    || lineBreakHandlingMode === 'remove') {
+  
+    let lineBreakChars = lineBreakHandlingMode;
+    if (lineBreakHandlingMode === 'remove') { 
+      lineBreakChars = '';
+    }
+    const eolCrlf = '\r\n';
+    const eolLf = '\n';
+    const eolCr = '\r';
+    if (text.endsWith(eolCrlf)) {
+      return text.substring(0, text.lastIndexOf(eolCrlf)) + lineBreakChars;
+    } else if (text.endsWith(eolLf)) {
+      return text.substring(0, text.lastIndexOf(eolLf)) + lineBreakChars;
+    } else if (text.endsWith(eolCr)) {
+      return text.substring(0, text.lastIndexOf(eolCr)) + lineBreakChars;
+    } else if (forceAppend) { 
+      return text + lineBreakChars;
+    }
+    return text;
+
+  }
+  return text;
 }
 
 // this method is called when your extension is deactivated
