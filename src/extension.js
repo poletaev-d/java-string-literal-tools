@@ -63,7 +63,7 @@ function copyLiterals() {
       let nodeText = isStringLiteral ? JSON.parse(singleLeaf.text) : currentNode.text;
       if (nextNode == null) {
         nodeText = processLineBreak(nodeText, extensionConfig.copyToClipboard.lineBreakHandling, false);
-      } else if (nextNode.start.line > currentNode.stop.line) {
+      } else if (getNodeStartLine(nextNode) > getNodeStopLine(currentNode)) {
         nodeText = processLineBreak(nodeText, extensionConfig.copyToClipboard.lineBreakHandling, true);
       }
       textToCopy += nodeText;
@@ -227,6 +227,14 @@ function processLineBreak(text, lineBreakHandlingMode, forceAppend) {
 
   }
   return text;
+}
+
+function getNodeStartLine(node) {
+  return node instanceof tree.TerminalNode ? node.parent.start.line : node.start.line;
+}
+
+function getNodeStopLine(node) {
+  return node instanceof tree.TerminalNode ? node.parent.stop.line : node.stop.line;
 }
 
 // this method is called when your extension is deactivated

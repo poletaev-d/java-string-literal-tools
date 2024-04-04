@@ -1,5 +1,10 @@
 # Change Log
 
+## [1.1.1] - 2024-04-05
+
+### Fixed
+- Bug when copying a multiline selection
+
 ## [1.1.0] - 2024-03-31
 
 ### Added
